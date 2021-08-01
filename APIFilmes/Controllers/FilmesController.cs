@@ -37,8 +37,8 @@ namespace APIFilmes.Controllers
             try
             {
                 /* O AsNoTracking é utilizado para performance, por se tratar de uma consulta simples, não há necessidade de 
-                     * mapear as alterações destes objetos buscados, haja visto que eles não serão alterados por esse recurso
-                     * */
+                 * mapear as alterações destes objetos buscados, haja visto que eles não serão alterados por esse recurso
+                 */
 
                 // Retorna a lista de filmes encontrados no banco de dados
                 return _context.Filmes.AsNoTracking().ToList();
@@ -128,7 +128,7 @@ namespace APIFilmes.Controllers
                 // Valida se o ID enviado na URL é o mesmo enviado no corpo do objeto
                 if (id != filme.ID)
                 {
-                    return BadRequest();
+                    return BadRequest($"Não foi possível atualizar o Filme com ID {id}, pois o ID informado como parâmetro difere do ID enviado no corpo da requisição. Verifique os dados e tente novamente.");
                 }
 
                 // Seta o estado do contexto como modificado e salva as alterações do objeto no banco de dados
