@@ -1,5 +1,6 @@
 ﻿using APIFilmes.Context;
 using APIFilmes.Model;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -33,12 +34,19 @@ namespace APIFilmes.Controllers
         [HttpGet]
         public ActionResult<IEnumerable<Genero>> ListarTodosGeneros()
         {
-            /* O AsNoTracking é utilizado para performance, por se tratar de uma consulta simples, não há necessidade de 
-             * mapear as alterações destes objetos buscados, haja visto que eles não serão alterados por esse recurso
-             * */
-
-            // Retorna a lista de gêneros encontrados no banco de dados
-            return _context.Generos.AsNoTracking().ToList();
+            try
+            {
+                /* O AsNoTracking é utilizado para performance, por se tratar de uma consulta simples, não há necessidade de 
+                * mapear as alterações destes objetos buscados, haja visto que eles não serão alterados por esse recurso
+                 * */
+                // Retorna a lista de gêneros encontrados no banco de dados
+                return _context.Generos.AsNoTracking().ToList();
+            }
+            catch (Exception)
+            {
+                // Em caso de algum erro, retornará um HTTP Status 500 com a mensagem de erro
+                return StatusCode(StatusCodes.Status500InternalServerError, "Erro ao listar os gêneros cadastrados. Tente novamente.");
+            }
         }
 
         /// <summary>
@@ -49,8 +57,16 @@ namespace APIFilmes.Controllers
         [HttpGet("filmes")]
         public ActionResult<IEnumerable<Genero>> ListarTodosGenerosComFilmes()
         {
-            // Retorna a lista de gêneros encontrados no banco de dados, incluindo seus filmes vinculados
-            return _context.Generos.Include(f => f.Filmes).ToList();
+            try
+            {
+                // Retorna a lista de gêneros encontrados no banco de dados, incluindo seus filmes vinculados
+                return _context.Generos.Include(f => f.Filmes).ToList();
+            }
+            catch (Exception)
+            {
+                // Em caso de algum erro, retornará um HTTP Status 500 com a mensagem de erro
+                return StatusCode(StatusCodes.Status500InternalServerError, "Erro ao listar os gêneros cadastrados com seus filmes vinculados. Tente novamente.");
+            }
         }
 
         /// <summary>
@@ -62,21 +78,29 @@ namespace APIFilmes.Controllers
         [HttpGet("{id}", Name = "BuscarGenero")]
         public ActionResult<Genero> BuscarGenero(int id)
         {
-            /* O AsNoTracking é utilizado para performance, por se tratar de uma consulta simples, não há necessidade de 
-             * mapear as alterações destes objetos buscados, haja visto que eles não serão alterados por esse recurso
-             * */
-
-            // Busca no banco um gênero passando como condição o ID recebido via requisição
-            var generoDb = _context.Generos.AsNoTracking().FirstOrDefault(f => f.ID.Equals(id));
-
-            // Verifica se foi encontrado algum gênero, caso não seja encontrado, retornará um HTTP Not Found (404)
-            if (generoDb == null)
+            try
             {
-                return NotFound();
-            }
+                /* O AsNoTracking é utilizado para performance, por se tratar de uma consulta simples, não há necessidade de 
+                     * mapear as alterações destes objetos buscados, haja visto que eles não serão alterados por esse recurso
+                     * */
 
-            // Retorna o gênero encontrado no banco de dados pelo ID
-            return generoDb;
+                // Busca no banco um gênero passando como condição o ID recebido via requisição
+                var generoDb = _context.Generos.AsNoTracking().FirstOrDefault(f => f.ID.Equals(id));
+
+                // Verifica se foi encontrado algum gênero, caso não seja encontrado, retornará um HTTP Not Found (404) com a mensagem para o usuário
+                if (generoDb == null)
+                {
+                    return NotFound($"O Gênero com ID {id} não foi encontrado!");
+                }
+
+                // Retorna o gênero encontrado no banco de dados pelo ID
+                return generoDb;
+            }
+            catch (Exception)
+            {
+                // Em caso de algum erro, retornará um HTTP Status 500 com a mensagem de erro que ocorreu ao buscar o gênero
+                return StatusCode(StatusCodes.Status500InternalServerError, $"Erro ao tentar obter os dados do gênero com ID {id}. Tente novamente.");
+            }
         }
 
         /// <summary>
@@ -87,18 +111,26 @@ namespace APIFilmes.Controllers
         [HttpPost]
         public ActionResult CadastrarGenero([FromBody] Genero genero)
         {
-            // Seta o Ativo e Data de Criação
-            genero.Ativo = 1;
-            genero.DataCriacao = DateTime.Now;
+            try
+            {
+                // Seta o Ativo e Data de Criação
+                genero.Ativo = 1;
+                genero.DataCriacao = DateTime.Now;
 
-            // Adiciona em memória o objeto enviado no body da requisição
-            _context.Generos.Add(genero);
+                // Adiciona em memória o objeto enviado no body da requisição
+                _context.Generos.Add(genero);
 
-            // Executa a query no BD, salvando o novo gênero
-            _context.SaveChanges();
+                // Executa a query no BD, salvando o novo gênero
+                _context.SaveChanges();
 
-            // Retornamos o recurso completo, com a URL e detalhes de como consultar o mesmo
-            return new CreatedAtRouteResult("BuscarGenero", new { id = genero.ID }, genero);
+                // Retornamos o recurso completo, com a URL e detalhes de como consultar o mesmo
+                return new CreatedAtRouteResult("BuscarGenero", new { id = genero.ID }, genero);
+            }
+            catch (Exception)
+            {
+                // Em caso de algum erro, retornará um HTTP Status 500 com a mensagem de erro que ocorreu
+                return StatusCode(StatusCodes.Status500InternalServerError, $"Erro ao tentar criar um novo gênero. Verifique os dados informados e tente novamente.");
+            }
         }
 
         /// <summary>
@@ -110,18 +142,31 @@ namespace APIFilmes.Controllers
         [HttpPut("{id}")]
         public ActionResult AlterarGenero(int id, [FromBody] Genero genero)
         {
-            // Valida se o ID enviado na URL é o mesmo enviado no corpo do objeto
-            if (id != genero.ID)
+            try
             {
-                return BadRequest();
+                // Valida se o ID enviado na URL é o mesmo enviado no corpo do objeto
+                if (id != genero.ID)
+                {
+                    return BadRequest($"Não foi possível atualizar o Gênero com ID {id}, pois o ID informado como parâmetro difere do ID enviado no corpo da requisição. Verifique os dados e tente novamente.");
+                }
+
+                // Seta o estado do contexto como modificado e salva as alterações do objeto no banco de dados
+                _context.Entry(genero).State = EntityState.Modified;
+                _context.SaveChanges();
+
+                // Retorna o objeto atualizado
+                return Ok(genero);
             }
-
-            // Seta o estado do contexto como modificado e salva as alterações do objeto no banco de dados
-            _context.Entry(genero).State = EntityState.Modified;
-            _context.SaveChanges();
-
-            // Retorna o objeto atualizado
-            return Ok(genero);
+            catch (DbUpdateConcurrencyException) //Tratamento para se caso seja passado um ID inexistente
+            {
+                // Em caso de algum erro, retornará um HTTP Status 500 com a mensagem de erro que ocorreu
+                return StatusCode(StatusCodes.Status500InternalServerError, $"O Gênero com ID {id} não existe no banco de dados. Verifique os dados informados e tente novamente.");
+            }
+            catch (Exception)
+            {
+                // Em caso de algum erro, retornará um HTTP Status 500 com a mensagem de erro que ocorreu
+                return StatusCode(StatusCodes.Status500InternalServerError, $"Erro ao tentar atualizar o Gênero com ID {id}. Verifique os dados informados e tente novamente.");
+            }
         }
 
         /// <summary>
@@ -132,21 +177,29 @@ namespace APIFilmes.Controllers
         [HttpDelete("{id}")]
         public ActionResult<Genero> DeletarGenero(int id)
         {
-            // Busca o item no banco de dados, para garantir que existe
-            var generoDb = _context.Generos.Find(id);
-
-            // Se não encontrar pela chave, retorna Not Found pro usuário
-            if (generoDb == null)
+            try
             {
-                return NotFound();
+                // Busca o item no banco de dados, para garantir que existe
+                var generoDb = _context.Generos.Find(id);
+
+                // Se não encontrar pela chave, retorna Not Found pro usuário
+                if (generoDb == null)
+                {
+                    return NotFound($"O Gênero com ID {id} não foi encontrado!");
+                }
+
+                // Se encontrar, remove do contexto e aplica o delete no banco de dados
+                _context.Generos.Remove(generoDb);
+                _context.SaveChanges();
+
+                // Retorna o genero que foi excluído do banco de dados
+                return generoDb;
             }
-
-            // Se encontrar, remove do contexto e aplica o delete no banco de dados
-            _context.Generos.Remove(generoDb);
-            _context.SaveChanges();
-
-            // Retorna o genero que foi excluído do banco de dados
-            return generoDb;
+            catch (Exception)
+            {
+                // Em caso de algum erro, retornará um HTTP Status 500 com a mensagem de erro que ocorreu
+                return StatusCode(StatusCodes.Status500InternalServerError, $"Erro ao tentar deletar o Gênero com ID {id}. Verifique os dados informados novamente.");
+            }
         }
     }
 }
