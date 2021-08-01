@@ -29,7 +29,11 @@ namespace APIFilmes
             // Registra no serviço o contexto para uso do banco de dados
             services.AddDbContext<APIFilmesDbContext>(config => config.UseSqlServer(Configuration.GetConnectionString("SQLConnection")));
 
-            services.AddControllers();
+            // Adiciona configuração do Newtonsoft Json para ignorar a referência cíclica
+            services.AddControllers().AddNewtonsoftJson(config => {
+                config.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
+                }
+            );
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)

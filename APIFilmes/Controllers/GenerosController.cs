@@ -42,6 +42,18 @@ namespace APIFilmes.Controllers
         }
 
         /// <summary>
+        /// Método responsável pela listagem de todos os gêneros cadastrados, com seus respectivos
+        /// filmes vinculados
+        /// </summary>
+        /// <returns>Uma lista com os gêneros cadastrados no banco de dados e seus filmes vinculados</returns>
+        [HttpGet("filmes")]
+        public ActionResult<IEnumerable<Genero>> ListarTodosGenerosComFilmes()
+        {
+            // Retorna a lista de gêneros encontrados no banco de dados, incluindo seus filmes vinculados
+            return _context.Generos.Include(f => f.Filmes).ToList();
+        }
+
+        /// <summary>
         /// Método responsável por buscar um gênero específico no banco de dados,
         /// usando seu ID como condicional
         /// </summary>

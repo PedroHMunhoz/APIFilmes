@@ -32,5 +32,15 @@ namespace APIFilmes.Model
         /// 1 - Ativo
         /// </summary>
         public short Ativo { get; set; }
+
+        /// <summary>
+        /// O Gênero ao qual o produto está vinculado
+        /// </summary>
+        public Genero Genero { get; set; }
+
+        /// <summary>
+        /// Propriedade de navegação para vincular com a tabela Gênero
+        /// </summary>
+        public int GeneroID { get; set; }
     }
 }
