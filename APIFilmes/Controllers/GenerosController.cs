@@ -1,5 +1,7 @@
 ﻿using APIFilmes.Context;
+using APIFilmes.DTOs;
 using APIFilmes.Model;
+using AutoMapper;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,15 +18,21 @@ namespace APIFilmes.Controllers
         // Variável para injeção de dependência do contexto
         private readonly APIFilmesDbContext _context;
 
+        // Variável para injeção da dependência do AutoMapper
+        private readonly IMapper _mapper;
+
         /// <summary>
         /// Construtor da classe, usando para injetar a dependência do APIFilmesDbContext
         /// e vincular na variável local para uso dentro da controller
         /// </summary>
         /// <param name="context">Um objeto do tipo APIFilmesDbContext</param>
-        public GenerosController(APIFilmesDbContext context)
+        public GenerosController(APIFilmesDbContext context, IMapper mapper)
         {
             // Seta na variavel private local o context injetado pela dependência
             _context = context;
+
+            // Seta na variavel private local o IMapper injetado pela dependência
+            _mapper = mapper;
         }
 
         /// <summary>
@@ -32,15 +40,21 @@ namespace APIFilmes.Controllers
         /// </summary>
         /// <returns>Uma lista com os gêneros cadastrados no banco de dados</returns>
         [HttpGet]
-        public ActionResult<IEnumerable<Genero>> ListarTodosGeneros()
+        public ActionResult<IEnumerable<GeneroDTO>> ListarTodosGeneros()
         {
             try
             {
                 /* O AsNoTracking é utilizado para performance, por se tratar de uma consulta simples, não há necessidade de 
                 * mapear as alterações destes objetos buscados, haja visto que eles não serão alterados por esse recurso
                  * */
+
                 // Retorna a lista de gêneros encontrados no banco de dados
-                return _context.Generos.AsNoTracking().ToList();
+                var generos = _context.Generos.AsNoTracking().ToList();
+
+                // Faz o mapeamento dos dados retornados do banco de dados para o DTO de Gêneros
+                var generosDto = _mapper.Map<List<GeneroDTO>>(generos);
+
+                return generosDto;
             }
             catch (Exception)
             {
@@ -55,12 +69,17 @@ namespace APIFilmes.Controllers
         /// </summary>
         /// <returns>Uma lista com os gêneros cadastrados no banco de dados e seus filmes vinculados</returns>
         [HttpGet("filmes")]
-        public ActionResult<IEnumerable<Genero>> ListarTodosGenerosComFilmes()
+        public ActionResult<IEnumerable<GeneroDTO>> ListarTodosGenerosComFilmes()
         {
             try
             {
                 // Retorna a lista de gêneros encontrados no banco de dados, incluindo seus filmes vinculados
-                return _context.Generos.Include(f => f.Filmes).ToList();
+                var generosComFilmes = _context.Generos.Include(f => f.Filmes).ToList();
+
+                // Faz o mapeamento dos dados retornados do banco de dados para o DTO de Gêneros e seus filmes
+                var generosDto = _mapper.Map<List<GeneroDTO>>(generosComFilmes);
+
+                return generosDto;
             }
             catch (Exception)
             {
@@ -76,7 +95,7 @@ namespace APIFilmes.Controllers
         /// <param name="id">O ID do gênero a ser consultado</param>
         /// <returns>O objeto completo do gênero, caso seja encontrado algum com o ID informado OU código 404 caso nenhum seja encontrado</returns>
         [HttpGet("{id}", Name = "BuscarGenero")]
-        public ActionResult<Genero> BuscarGenero(int id)
+        public ActionResult<GeneroDTO> BuscarGenero(int id)
         {
             try
             {
@@ -93,8 +112,11 @@ namespace APIFilmes.Controllers
                     return NotFound($"O Gênero com ID {id} não foi encontrado!");
                 }
 
+                // Faz o mapeamento do gênero encontrado no banco pelo ID para o DTO
+                var generoDto = _mapper.Map<GeneroDTO>(generoDb);
+
                 // Retorna o gênero encontrado no banco de dados pelo ID
-                return generoDb;
+                return generoDto;
             }
             catch (Exception)
             {
@@ -109,10 +131,13 @@ namespace APIFilmes.Controllers
         /// <param name="genero">O objeto Genero, enviado no Body da requisição HTTP</param>
         /// <returns></returns>
         [HttpPost]
-        public ActionResult CadastrarGenero([FromBody] Genero genero)
+        public ActionResult CadastrarGenero([FromBody] GeneroDTO generoDTO)
         {
             try
             {
+                // Mapeia o DTO enviado para a Model de domínio
+                var genero = _mapper.Map<Genero>(generoDTO);
+
                 // Seta o Ativo e Data de Criação
                 genero.Ativo = 1;
                 genero.DataCriacao = DateTime.Now;
@@ -123,8 +148,11 @@ namespace APIFilmes.Controllers
                 // Executa a query no BD, salvando o novo gênero
                 _context.SaveChanges();
 
+                // Faz o mapeamento reverso, do Filme para FilmeDTO
+                var generoDto = _mapper.Map<GeneroDTO>(genero);
+
                 // Retornamos o recurso completo, com a URL e detalhes de como consultar o mesmo
-                return new CreatedAtRouteResult("BuscarGenero", new { id = genero.ID }, genero);
+                return new CreatedAtRouteResult("BuscarGenero", new { id = generoDto.ID }, generoDto);
             }
             catch (Exception)
             {
@@ -140,22 +168,34 @@ namespace APIFilmes.Controllers
         /// <param name="genero">O objeto Genero, enviado no Body da requisição HTTP</param>
         /// <returns></returns>
         [HttpPut("{id}")]
-        public ActionResult AlterarGenero(int id, [FromBody] Genero genero)
+        public ActionResult AlterarGenero(int id, [FromBody] GeneroDTO generoDTO)
         {
             try
             {
                 // Valida se o ID enviado na URL é o mesmo enviado no corpo do objeto
-                if (id != genero.ID)
+                if (id != generoDTO.ID)
                 {
                     return BadRequest($"Não foi possível atualizar o Gênero com ID {id}, pois o ID informado como parâmetro difere do ID enviado no corpo da requisição. Verifique os dados e tente novamente.");
                 }
 
-                // Seta o estado do contexto como modificado e salva as alterações do objeto no banco de dados
+                // Mapeia o DTO enviado para a Model de domínio
+                var genero = _mapper.Map<Genero>(generoDTO);
+
+                // Seta o estado do contexto como modificado
                 _context.Entry(genero).State = EntityState.Modified;
+
+                // Ignora os campo DataCriacao e Ativo, pois ele não deve ser atualizado pelo PUT
+                _context.Entry(genero).Property(x => x.DataCriacao).IsModified = false;
+                _context.Entry(genero).Property(x => x.Ativo).IsModified = false;
+
+                // Salva as alterações no banco de dados
                 _context.SaveChanges();
 
+                // Faz o mapeamento reverso, do Filme para FilmeDTO
+                var generoDto = _mapper.Map<GeneroDTO>(genero);
+
                 // Retorna o objeto atualizado
-                return Ok(genero);
+                return Ok(generoDto);
             }
             catch (DbUpdateConcurrencyException) //Tratamento para se caso seja passado um ID inexistente
             {
@@ -175,7 +215,7 @@ namespace APIFilmes.Controllers
         /// <param name="id">O ID do gênero a ser excluído</param>
         /// <returns>O objeto que foi excluído OU erro 404 se não for encontrado na base de dados</returns>
         [HttpDelete("{id}")]
-        public ActionResult<Genero> DeletarGenero(int id)
+        public ActionResult<GeneroDTO> DeletarGenero(int id)
         {
             try
             {
@@ -192,13 +232,60 @@ namespace APIFilmes.Controllers
                 _context.Generos.Remove(generoDb);
                 _context.SaveChanges();
 
+                // Faz o mapeamento reverso, do Genero para GeneroDTO
+                var generoDto = _mapper.Map<GeneroDTO>(generoDb);
+
                 // Retorna o genero que foi excluído do banco de dados
-                return generoDb;
+                return generoDto;
             }
             catch (Exception)
             {
                 // Em caso de algum erro, retornará um HTTP Status 500 com a mensagem de erro que ocorreu
                 return StatusCode(StatusCodes.Status500InternalServerError, $"Erro ao tentar deletar o Gênero com ID {id}. Verifique os dados informados novamente.");
+            }
+        }
+
+        /// <summary>
+        /// Método responsável pro inativar um Gênero
+        /// </summary>
+        /// <param name="id">O ID do gênero a ser inativado</param>
+        /// <returns>O Gênero que foi inativado</returns>
+        [HttpPatch("inativar/{id}")]
+        public ActionResult<GeneroDTO> InativarGenero(int id)
+        {
+            try
+            {
+                // Busca o item no banco de dados, para garantir que existe
+                var generoDb = _context.Generos.Find(id);
+
+                // Se não encontrar pela chave, retorna Not Found pro usuário
+                if (generoDb == null)
+                {
+                    return NotFound($"O Gênero com ID {id} não foi encontrado!");
+                }
+
+                // Seta o estado do contexto como modificado
+                _context.Entry(generoDb).State = EntityState.Modified;
+
+                // Ignora o campo DataCriacao, pois ele não deve ser atualizado pelo PATCH
+                _context.Entry(generoDb).Property(x => x.DataCriacao).IsModified = false;
+
+                // Seta o campo Ativo para 0, inativando o Gênero
+                _context.Entry(generoDb).Property(x => x.Ativo).CurrentValue = 0;
+
+                // Persiste os dados no BD
+                _context.SaveChanges();
+
+                // Faz o mapeamento reverso, do Genero para GeneroDTO
+                var generoDto = _mapper.Map<GeneroDTO>(generoDb);
+
+                // Retorna o genero alterado
+                return generoDto;
+            }
+            catch (Exception)
+            {
+                // Em caso de algum erro, retornará um HTTP Status 500 com a mensagem de erro que ocorreu
+                return StatusCode(StatusCodes.Status500InternalServerError, $"Erro ao tentar inativar o Gênero com ID {id}. Verifique os dados informados novamente.");
             }
         }
     }

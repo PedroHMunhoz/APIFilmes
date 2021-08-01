@@ -1,5 +1,7 @@
 ﻿using APIFilmes.Context;
+using APIFilmes.DTOs;
 using APIFilmes.Model;
+using AutoMapper;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -16,15 +18,21 @@ namespace APIFilmes.Controllers
         // Variável para injeção de dependência do contexto
         private readonly APIFilmesDbContext _context;
 
+        // Variável para injeção da dependência do AutoMapper
+        private readonly IMapper _mapper;
+
         /// <summary>
         /// Construtor da classe, usando para injetar a dependência do APIFilmesDbContext
         /// e vincular na variável local para uso dentro da controller
         /// </summary>
         /// <param name="context">Um objeto do tipo APIFilmesDbContext</param>
-        public FilmesController(APIFilmesDbContext context)
+        public FilmesController(APIFilmesDbContext context, IMapper mapper)
         {
             // Seta na variavel private local o context injetado pela dependência
             _context = context;
+
+            // Seta na variavel private local o IMapper injetado pela dependência
+            _mapper = mapper;
         }
 
         /// <summary>
@@ -32,7 +40,7 @@ namespace APIFilmes.Controllers
         /// </summary>
         /// <returns>Uma lista com os filmes cadastrados no banco de dados</returns>
         [HttpGet]
-        public ActionResult<IEnumerable<Filme>> ListarTodosFilmes()
+        public ActionResult<IEnumerable<FilmeDTO>> ListarTodosFilmes()
         {
             try
             {
@@ -41,7 +49,13 @@ namespace APIFilmes.Controllers
                  */
 
                 // Retorna a lista de filmes encontrados no banco de dados
-                return _context.Filmes.AsNoTracking().ToList();
+                var filmes = _context.Filmes.AsNoTracking().ToList();
+
+                // Faz o mapeamento dos dados retornados do banco de dados para o DTO de Filmes
+                var filmesDTO = _mapper.Map<List<FilmeDTO>>(filmes);
+
+                // Retorna o DTO mapeado com os dados
+                return filmesDTO;
             }
             catch (Exception)
             {
@@ -57,7 +71,7 @@ namespace APIFilmes.Controllers
         /// <param name="id">O ID do filme a ser consultado</param>
         /// <returns>O objeto completo do filme, caso seja encontrado algum com o ID informado OU código 404 caso nenhum seja encontrado</returns>
         [HttpGet("{id}", Name = "BuscarFilme")]
-        public ActionResult<Filme> BuscarFilme(int id)
+        public ActionResult<FilmeDTO> BuscarFilme(int id)
         {
             try
             {
@@ -74,8 +88,11 @@ namespace APIFilmes.Controllers
                     return NotFound($"O Filme com ID {id} não foi encontrado!");
                 }
 
-                // Retorna o filme encontrado no banco de dados pelo ID
-                return filmeDb;
+                // Faz o mapeamento do filme encontrado no banco pelo ID para o DTO
+                var filmeDTO = _mapper.Map<FilmeDTO>(filmeDb);
+
+                // Retorna o DTO mapeado com os dados
+                return filmeDTO;
             }
             catch (Exception)
             {
@@ -90,22 +107,28 @@ namespace APIFilmes.Controllers
         /// <param name="filme">O objeto Filme, enviado no Body da requisição HTTP</param>
         /// <returns></returns>
         [HttpPost]
-        public ActionResult CadastrarFilme([FromBody] Filme filme)
+        public ActionResult CadastrarFilme([FromBody] FilmeDTO filmeDTO)
         {
             try
             {
-                // Seta o Ativo e Data de Criação
+                // Mapeia o DTO enviado para a Model de domínio
+                var filme = _mapper.Map<Filme>(filmeDTO);
+
+                // Seta o Ativo e Data de Criação, pois é um cadastro novo
                 filme.Ativo = 1;
                 filme.DataCriacao = DateTime.Now;
 
-                // Adiciona em memória o objeto enviado no body da requisição
+                // Adiciona no contexto o objeto mapeado
                 _context.Filmes.Add(filme);
 
                 // Executa a query no BD, salvando o novo filme
                 _context.SaveChanges();
 
+                // Faz o mapeamento reverso, do Filme para FilmeDTO
+                var filmeDto = _mapper.Map<FilmeDTO>(filme);
+
                 // Retornamos o recurso completo, com a URL e detalhes de como consultar o mesmo
-                return new CreatedAtRouteResult("BuscarFilme", new { id = filme.ID }, filme);
+                return new CreatedAtRouteResult("BuscarFilme", new { id = filme.ID }, filmeDto);
             }
             catch (Exception)
             {
@@ -121,22 +144,34 @@ namespace APIFilmes.Controllers
         /// <param name="filme">O objeto Filme, enviado no Body da requisição HTTP</param>
         /// <returns></returns>
         [HttpPut("{id}")]
-        public ActionResult AlterarFilme(int id, [FromBody] Filme filme)
+        public ActionResult AlterarFilme(int id, [FromBody] FilmeDTO filmeDTO)
         {
             try
             {
                 // Valida se o ID enviado na URL é o mesmo enviado no corpo do objeto
-                if (id != filme.ID)
+                if (id != filmeDTO.ID)
                 {
                     return BadRequest($"Não foi possível atualizar o Filme com ID {id}, pois o ID informado como parâmetro difere do ID enviado no corpo da requisição. Verifique os dados e tente novamente.");
                 }
 
-                // Seta o estado do contexto como modificado e salva as alterações do objeto no banco de dados
+                // Mapeia o DTO enviado para a Model de domínio
+                var filme = _mapper.Map<Filme>(filmeDTO);
+
+                // Seta o estado do contexto como modificado
                 _context.Entry(filme).State = EntityState.Modified;
+
+                // Ignora o campo DataCriacao e Ativo, pois ele não deve ser atualizado pelo PUT
+                _context.Entry(filme).Property(x => x.DataCriacao).IsModified = false;
+                _context.Entry(filme).Property(x => x.Ativo).IsModified = false;
+
+                // Salva as alterações no banco de dados
                 _context.SaveChanges();
 
+                // Faz o mapeamento reverso, do Filme para FilmeDTO
+                var filmeDto = _mapper.Map<FilmeDTO>(filme);
+
                 // Retorna o objeto atualizado
-                return Ok(filme);
+                return Ok(filmeDto);
             }
             catch (DbUpdateConcurrencyException) //Tratamento para se caso seja passado um ID inexistente
             {
@@ -156,7 +191,7 @@ namespace APIFilmes.Controllers
         /// <param name="id">O ID do filme a ser excluído</param>
         /// <returns>O objeto que foi excluído OU erro 404 se não for encontrado na base de dados</returns>
         [HttpDelete("{id}")]
-        public ActionResult<Filme> DeletarFilme(int id)
+        public ActionResult<FilmeDTO> DeletarFilme(int id)
         {
             try
             {
@@ -173,13 +208,60 @@ namespace APIFilmes.Controllers
                 _context.Filmes.Remove(filmeDb);
                 _context.SaveChanges();
 
-                // Retorna o genero que foi excluído do banco de dados
-                return filmeDb;
+                // Faz o mapeamento reverso, do Filme para FilmeDTO
+                var filmeDto = _mapper.Map<FilmeDTO>(filmeDb);
+
+                // Retorna o filme que foi excluído do banco de dados
+                return filmeDto;
             }
             catch (Exception)
             {
                 // Em caso de algum erro, retornará um HTTP Status 500 com a mensagem de erro que ocorreu
                 return StatusCode(StatusCodes.Status500InternalServerError, $"Erro ao tentar deletar o Filme com ID {id}. Verifique os dados informados novamente.");
+            }
+        }
+
+        /// <summary>
+        /// Método responsável pro inativar um Filme
+        /// </summary>
+        /// <param name="id">O ID do filme a ser inativado</param>
+        /// <returns>O Filme que foi inativado</returns>
+        [HttpPatch("inativar/{id}")]
+        public ActionResult<FilmeDTO> InativarFilme(int id)
+        {
+            try
+            {
+                // Busca o item no banco de dados, para garantir que existe
+                var filmeDb = _context.Filmes.Find(id);
+
+                // Se não encontrar pela chave, retorna Not Found pro usuário
+                if (filmeDb == null)
+                {
+                    return NotFound($"O Filme com ID {id} não foi encontrado!");
+                }
+
+                // Seta o estado do contexto como modificado
+                _context.Entry(filmeDb).State = EntityState.Modified;
+
+                // Ignora o campo DataCriacao, pois ele não deve ser atualizado pelo PATCH
+                _context.Entry(filmeDb).Property(x => x.DataCriacao).IsModified = false;
+
+                // Seta o campo Ativo para 0, inativando o Filme
+                _context.Entry(filmeDb).Property(x => x.Ativo).CurrentValue = 0;
+
+                // Persiste os dados no BD
+                _context.SaveChanges();
+
+                // Faz o mapeamento reverso, do Filme para FilmeDTO
+                var filmeDto = _mapper.Map<FilmeDTO>(filmeDb);                
+
+                // Retorna o filme alterado
+                return filmeDto;
+            }
+            catch (Exception)
+            {
+                // Em caso de algum erro, retornará um HTTP Status 500 com a mensagem de erro que ocorreu
+                return StatusCode(StatusCodes.Status500InternalServerError, $"Erro ao tentar inativar o Filme com ID {id}. Verifique os dados informados novamente.");
             }
         }
     }
