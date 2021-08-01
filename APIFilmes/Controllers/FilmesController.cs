@@ -264,5 +264,55 @@ namespace APIFilmes.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, $"Erro ao tentar inativar o Filme com ID {id}. Verifique os dados informados novamente.");
             }
         }
+
+        [HttpDelete("deletemultiplos")]
+        public ActionResult DeletarMultiplosFilmes([FromBody]IEnumerable<int> listaFilmesID)
+        {
+            try
+            {
+                // Pega o tamanho do array enviado para saber quantos filmes devem ser deletados
+                int qtdFilmesParaDeletar = listaFilmesID.Count();
+
+                // Variável para guardar a quantidade de registros afetados pelo delete
+                int qtdFilmesAfetados = 0;
+
+                // Monta uma lista com objetos do tipo Filme, apenas com o ID (chave), pra fazer o DELETE
+                List<Filme> listaFilmes = new List<Filme>();
+                foreach (int filmeID in listaFilmesID)
+                {
+                    Filme filme = new Filme()
+                    {
+                        ID = filmeID
+                    };
+                    listaFilmes.Add(filme);
+                }
+
+                // Remove um range de filmes conforme a lista montada
+                _context.RemoveRange(listaFilmes);
+
+                // Executa a query no banco de dados e retorna quantos registros foram afetados pelo DELETE
+                qtdFilmesAfetados = _context.SaveChanges();
+               
+                // Se foi possíve deletar todos os registros enviados
+                if(qtdFilmesAfetados == qtdFilmesParaDeletar)
+                {
+                    return Ok($"Todos os filmes solicitados foram excluídos.");
+                }
+                else // Se algum registro foi afetado, mas não todos, avisa o usuário com a mensagem correta
+                {
+                    return Ok($"Foram excluídos {qtdFilmesAfetados} filmes de um total de {qtdFilmesParaDeletar}. Alguns filmes não existiam na base de dados e não foram deletados.");
+                }
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                // Se nenhum registro foi afetado, o EF dispara esse exception, então avisa o usuário que nenhum dos que foi enviado foi deletado
+                return Ok($"Nenhum filme foi excluído pois eles não existiam na base de dados.");
+            }
+            catch (Exception)
+            {
+                // Em caso de algum erro, retornará um HTTP Status 500 com a mensagem de erro que ocorreu
+                return StatusCode(StatusCodes.Status500InternalServerError, $"Erro ao tentar deletar os filmes informados. Verifique os dados informados novamente.");
+            }
+        }
     }
 }
