@@ -146,5 +146,11 @@ namespace APIFilmes.Controllers
                 return BadRequest(ModelState);
             }
         }        
+
+        [HttpGet]
+        public ActionResult HomePageAPI()
+        {
+            return Ok("Página Inicial API Filmes. Para consumir a API, sigas as instruções do arquivo Readme.md");
+        }
     }
 }
