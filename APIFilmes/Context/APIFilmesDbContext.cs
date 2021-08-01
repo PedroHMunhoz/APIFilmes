@@ -1,9 +1,10 @@
 ﻿using APIFilmes.Model;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace APIFilmes.Context
 {
-    public class APIFilmesDbContext : DbContext
+    public class APIFilmesDbContext : IdentityDbContext
     {
         public APIFilmesDbContext(DbContextOptions<APIFilmesDbContext> config) : base(config)
         {

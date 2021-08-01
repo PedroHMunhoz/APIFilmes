@@ -2,6 +2,7 @@
 using APIFilmes.DTOs;
 using APIFilmes.Model;
 using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,7 @@ namespace APIFilmes.Controllers
 {
     [Route("api/v1/[controller]")]
     [ApiController]
+    [Authorize(AuthenticationSchemes = "Bearer")]
     public class GenerosController : ControllerBase
     {
         // Variável para injeção de dependência do contexto
@@ -22,7 +24,7 @@ namespace APIFilmes.Controllers
         private readonly IMapper _mapper;
 
         /// <summary>
-        /// Construtor da classe, usando para injetar a dependência do APIFilmesDbContext
+        /// Construtor da classe, usado para injetar a dependência do APIFilmesDbContext
         /// e vincular na variável local para uso dentro da controller
         /// </summary>
         /// <param name="context">Um objeto do tipo APIFilmesDbContext</param>

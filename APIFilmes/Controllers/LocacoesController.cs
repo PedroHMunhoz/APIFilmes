@@ -2,6 +2,7 @@
 using APIFilmes.DTOs;
 using APIFilmes.Model;
 using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,7 @@ namespace APIFilmes.Controllers
 {
     [Route("api/v1/[controller]")]
     [ApiController]
+    [Authorize(AuthenticationSchemes = "Bearer")]
     public class LocacoesController : ControllerBase
     {
         // Variável para injeção de dependência do contexto
@@ -22,7 +24,7 @@ namespace APIFilmes.Controllers
         private readonly IMapper _mapper;
 
         /// <summary>
-        /// Construtor da classe, usando para injetar a dependência do APIFilmesDbContext
+        /// Construtor da classe, usado para injetar a dependência do APIFilmesDbContext
         /// e vincular na variável local para uso dentro da controller
         /// </summary>
         /// <param name="context">Um objeto do tipo APIFilmesDbContext</param>
@@ -35,6 +37,11 @@ namespace APIFilmes.Controllers
             _mapper = mapper;
         }
 
+        /// <summary>
+        /// Método responsável por cadastrar a locação de filmes
+        /// </summary>
+        /// <param name="locacao">O objeto da locação, com os respectivos filmes a serem alugados</param>
+        /// <returns></returns>
         [HttpPost]
         public ActionResult CadastrarLocacao([FromBody] Locacao locacao)
         {
@@ -52,6 +59,7 @@ namespace APIFilmes.Controllers
                     // Se o filme não existir no banco, guarda o ID para informar na mensagem de retorno
                     if(filmeDb == null)
                     {
+                        // Se já tiver algum ID, adiciona uma vírgula para separar os dados na mensagem
                         if (!string.IsNullOrWhiteSpace(idsFilmesInexistentes))
                             idsFilmesInexistentes += ", ";
 
