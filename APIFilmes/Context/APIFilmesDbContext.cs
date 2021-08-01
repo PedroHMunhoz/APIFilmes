@@ -13,5 +13,7 @@ namespace APIFilmes.Context
         // Configurações dos DbSet para os objetos
         public DbSet<Genero> Generos { get; set; }
         public DbSet<Filme> Filmes { get; set; }
+        public DbSet<Locacao> Locacoes { get; set; }
+        public DbSet<LocacaoItem> LocacoesItem { get; set; }
     }
 }

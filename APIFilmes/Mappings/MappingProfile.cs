@@ -10,6 +10,7 @@ namespace APIFilmes.Mappings
         {
             CreateMap<Filme, FilmeDTO>().ReverseMap();
             CreateMap<Genero, GeneroDTO>().ReverseMap();
+            CreateMap<Locacao, LocacaoDTO>().ReverseMap().ForMember(x => x.ListaFilmes, opt => opt.Ignore());
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace APIFilmes.Model
@@ -42,5 +43,11 @@ namespace APIFilmes.Model
         /// Propriedade de navegação para vincular com a tabela Gênero
         /// </summary>
         public int GeneroID { get; set; }
+
+        /// <summary>
+        /// Propriedade de navegação do EF, para indicar que um mesmo Filme
+        /// pode estar em 1 ou mais (1:N) locações
+        /// </summary>
+        public ICollection<LocacaoItem> LocacaoItens { get; set; }
     }
 }
